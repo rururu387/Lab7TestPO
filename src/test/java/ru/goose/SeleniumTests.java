@@ -1,17 +1,16 @@
 package ru.goose;
 
+import org.junit.Assert;
 import org.junit.jupiter.api.*;
+import org.junit.platform.commons.util.StringUtils;
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class SeleniumTests
 {
@@ -30,16 +29,36 @@ public class SeleniumTests
     @Test
     public void errorLogin()
     {
-        login("12345"); // Password is incorrect
-        String error_message = driver.findElement(By.id("trInvCrd")).getText();
-        Assertions.assertTrue(error_message.contains("Введено неправильное имя пользователя или пароль. Повторите ввод."));
+        try
+        {
+            login("12345"); // Password is incorrect
+            String error_message = driver.findElement(By.id("trInvCrd")).getText();
+            Assertions.assertTrue(error_message.contains("Введено неправильное имя пользователя или пароль. Повторите ввод."));
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
     }
 
     @Test
     public void correctLogin()
     {
-        login();
-        Assertions.assertTrue(driver.findElement(By.id("lo")).getText().equals("Выйти"));
+        try
+        {
+            login();
+            Assertions.assertTrue(driver.findElement(By.id("lo")).getText().equals("Выйти"));
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
     }
 
     private void login()
@@ -59,61 +78,90 @@ public class SeleniumTests
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
     }
 
-    private void navigateToMessage(int messageNumber)
-    {
-        int messagesOnPageAmount = Integer.parseInt(ConfigProperties.getProperty("messagesOnPage"));
-        int pageNumber = messageNumber / messagesOnPageAmount;
-
-        for (int i = 0; i < pageNumber; i++)
-        {
-            navigateToNextPage();
-        }
-
-        int messageOnPageNumber = messageNumber % messagesOnPageAmount;
-
-        WebElement wantedMessage = driver.findElement(
-                By.xpath("*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr["
-                        + 3 + messageOnPageNumber +"]/td[6]/h1/a"));
-
-        wantedMessage.click();
-    }
-
-    @Test
-    public void tempTest()
-    {
-        login();
-        //navigateToNextPage(0);
-    }
-
-    @Test
     public void logout()
     {
-        login();
         driver.findElement(By.id("lo")).click();
-        Assertions.assertTrue(driver.getCurrentUrl().startsWith("https://owa.miet.ru/owa/auth/logoff.aspx"));
     }
 
     @Test
-    public void checkMessage()
+    public void logoutTest()
     {
-        String assertion_str  = "Гуси лучшие! Гуси имеют лапки, клювы и даже крылья. " +
-                "Вы могли не знать, но у гусей есть еще и уши с зубами, так что тебе от них нигде не скрыться. " +
-                "Гуси хорошо плавают и ныряют, так что подводная база - не вариант. " +
-                "Нет ни одного существа, более универсального, чем гусь: ныряющего, плавающего, бегающего и летающего. " +
-                "Даже утки не такие универсальные. А лебеди не такие гордые и жесткие, как гуси. " +
-                "Если лебедь нападает, то шансов выжить > 0, в отличие от гусиного нападения (0). " +
-                "Гуси лучше всех! \n";
-        login();
-        driver.findElement(By.linkText("Гуси лучшие!")).click();
-        Assertions.assertEquals("Гуси лучшие!", driver.findElement(By.className("sub")).getText());
-        Assertions.assertEquals("Лаврентьев Олег Евгеньевич", driver.findElement(By.className("frm")).getText());
-        Assertions.assertEquals(assertion_str, driver.findElement(By.className("bdy")).getText());
+        try
+        {
+            login();
+            logout();
+            Assertions.assertTrue(driver.getCurrentUrl().startsWith("https://owa.miet.ru/owa/auth/logoff.aspx"));
+        }
+        catch (Exception e)
+        {
+            logout();
+            e.printStackTrace();
+            Assertions.fail();
+        }
     }
 
-    private boolean navigateToPrevPage()
+    @Test
+    public void checkMessageInbox()
+    {
+        try
+        {
+            String assertion_str = "Гуси лучшие! Гуси имеют лапки, клювы и даже крылья. " +
+                    "Вы могли не знать, но у гусей есть еще и уши с зубами, так что тебе от них нигде не скрыться. " +
+                    "Гуси хорошо плавают и ныряют, так что подводная база - не вариант. " +
+                    "Нет ни одного существа, более универсального, чем гусь: ныряющего, плавающего, бегающего и летающего. " +
+                    "Даже утки не такие универсальные. А лебеди не такие гордые и жесткие, как гуси. " +
+                    "Если лебедь нападает, то шансов выжить > 0, в отличие от гусиного нападения (0). " +
+                    "Гуси лучше всех! ";
+            login();
+            driver.findElement(By.linkText("Гуси лучшие!")).click();
+            Assertions.assertEquals("Гуси лучшие!", driver.findElement(By.className("sub")).getText());
+            Assertions.assertEquals("Лаврентьев Олег Евгеньевич", driver.findElement(By.className("frm")).getText());
+            Assertions.assertEquals(assertion_str, driver.findElement(By.className("bdy")).getText());
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    @Test
+    public void deleteMessage()
+    {
+        login();
+        sendMessage();
+
+        driver.findElement(
+                By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[1]/table/tbody/tr[2]/td/table/tbody/tr/td/table[1]/tbody/tr[3]/td/a"))
+                .click();
+
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+        driver.findElement(By.id("lnkHdrcheckmessages")).click();
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+
+        openMessageOnCurrentPage(0);
+        String sub = driver.findElement(By.className("sub")).getText();
+        String frm = driver.findElement(By.className("frm")).getText();
+        String bdy = driver.findElement(By.className("bdy")).getText();
+        driver.findElement(By.id("lnkHdrdelete")).click();
+        driver.findElement(
+                By.xpath("/html/body/form/table/tbody/tr[2]/td[1]/table/tbody/tr[2]/td/table/tbody/tr/td/table[1]/tbody/tr[4]/td/a"))
+                .click();
+        openMessage(0);
+        Assertions.assertEquals(sub, driver.findElement(By.className("sub")).getText());
+        Assertions.assertEquals(frm, driver.findElement(By.className("frm")).getText());
+        Assertions.assertEquals(bdy, driver.findElement(By.className("bdy")).getText());
+        logout();
+}
+
+private boolean navigateToPrevPage()
     {
         // findElements() called to prevent throwing error if not found
-        List<WebElement> secondPageButtonList = driver.findElements(By.id("#lnkPrvPg"));
+        List<WebElement> secondPageButtonList = driver.findElements(By.id("lnkPrvPg"));
 
         if (secondPageButtonList.size() == 0)
         {
@@ -128,7 +176,7 @@ public class SeleniumTests
     private boolean navigateToNextPage()
     {
         // findElements() called to prevent throwing error if not found
-        List<WebElement> secondPageButtonList = driver.findElements(By.id("#lnkNxtPg"));
+        List<WebElement> secondPageButtonList = driver.findElements(By.id("lnkNxtPg"));
 
         if (secondPageButtonList.size() == 0)
         {
@@ -140,49 +188,204 @@ public class SeleniumTests
         return true;
     }
 
-    @Test
-    public void viewSecondPage()
+    private void checkMessageOnCurrentPage(int messageNumber)
     {
-        correctLogin();
-        WebElement firstPageFirstMessage = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]/td[6]/h1/a"));
-        firstPageFirstMessage.click();
+        messageNumber = messageNumber + 3;
+        driver.findElement(
+                By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr["
+                        + messageNumber + "]/td[4]/input"))
+                .click();
+    }
+
+    private void openMessageOnCurrentPage(int messageNumber)
+    {
+        messageNumber = messageNumber + 3;
+        WebElement wantedMessage = driver.findElement(
+                By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr["
+                        + messageNumber +"]/td[6]/h1/a"));
+
+        wantedMessage.click();
+
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
-        String firstPageFirstMessageId = driver.getCurrentUrl();
-        driver.navigate().back();
+    }
 
-        navigateToNextPage();
+    private void openMessage(int messageNumber)
+    {
+        List<WebElement> pageRefs = driver.findElements(By.id("lnkPgNm1"));
 
-        WebElement firstMessageSecondPage = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]/td[6]/h1/a"));
-        firstMessageSecondPage.click();
-        String secondPageFirstMessageId = driver.getCurrentUrl();
-        Assertions.assertNotEquals(firstPageFirstMessage, firstMessageSecondPage);
+        if (pageRefs.size() != 0)
+        {
+            pageRefs.get(0).click();
+        }
+
+        int messagesPerPageAmount = Integer.parseInt(ConfigProperties.getProperty("messagesPerPage"));
+        int pageNumber = messageNumber / messagesPerPageAmount;
+
+        for (int i = 0; i < pageNumber; i++)
+        {
+            navigateToNextPage();
+        }
+
+        int messageOnPageNumber = messageNumber % messagesPerPageAmount;
+
+        openMessageOnCurrentPage(messageOnPageNumber);
     }
 
     @Test
-    public void sendMessage()
+    public void checkDifferentPagesShowDifferentMessages()
     {
-        login();
+        try
+        {
+            login();
 
+            List<String> messageUrls = new ArrayList<>();
+
+            do
+            {
+                openMessageOnCurrentPage(0);
+                messageUrls.add(driver.getCurrentUrl());
+                driver.navigate().back();
+                driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+            }
+            while (navigateToNextPage());
+
+            if (driver.findElements(By.xpath("//*[@id=\"lnkLstPg\"]")).size() != 0)
+            {
+                Assertions.fail();
+            }
+            else
+            {
+                Set<String> messageUrlsSet = new HashSet<>(messageUrls);
+                Assertions.assertEquals(messageUrls.size(), messageUrlsSet.size());
+            }
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    public String sendMessage()
+    {
         driver.findElement(By.id("lnkHdrnewmsg")).click();
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
         driver.findElement(By.id("txtto")).sendKeys("8181033@edu.miet.ru");
-        String msgTitle = "testTitle"+ LocalDateTime.now().toString();
+        String msgTitle = "testTitle" + LocalDateTime.now().toString();
         driver.findElement(By.id("txtsbj")).sendKeys(msgTitle);
-        driver.findElement(By.name("txtbdy")).sendKeys("testMessage: sportorgs are cool, geese too");
+        driver.findElement(By.name("txtbdy"))
+                .sendKeys("testMessage: sportorgs are cool, geese are the coolest");
         driver.findElement(By.id("lnkHdrsend")).click();
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
-
-        driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[1]/table/tbody/tr[2]/td/table/tbody/tr/td/table[1]/tbody/tr[3]/td/a")).click();
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
-
-        //go to first msg
-
-        Assertions.assertTrue(driver.findElement(By.className("sub")).getText().contains(msgTitle));
+        return msgTitle;
     }
 
-    /*@AfterEach
+    public void refreshInbox() throws InterruptedException
+    {
+        Thread.sleep(5000);
+        driver.findElement(By.id("lnkHdrcheckmessages")).click();
+    }
+
+    @Test
+    public void sendMessageTest()
+    {
+        login();
+        try
+        {
+            String msgTitle = sendMessage();
+
+            driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[1]/table/tbody/tr[2]/td/table/tbody/tr/td/table[1]/tbody/tr[3]/td/a")).click();
+
+            refreshInbox();
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+
+            openMessage(0);
+
+            Assertions.assertEquals(msgTitle, driver.findElement(By.className("sub")).getText());
+        }
+        catch (Exception e)
+        {
+            System.out.println(e.getMessage() + "<----");
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    @Test
+    public void testFilterMessageContainsGoose()
+    {
+        login();
+        try
+        {
+            String gooseStr = "Гусь";
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+
+            WebElement searchField = driver.findElement(By.id("txtSch"));
+            searchField.sendKeys(gooseStr);
+
+            WebElement searchButton = driver.findElement(By.id("schBtn"));
+            searchButton.click();
+
+            List<WebElement> messageButtons = driver.findElements(
+                    By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[3]/td/div/table/tbody/tr/td/h1/a"));
+
+            for (int i = 0; i < messageButtons.size(); i++)
+            {
+                WebElement messageButton = messageButtons.get(i);
+
+                if (messageButton.getText().toLowerCase(Locale.ROOT).contains("Гусь".toLowerCase(Locale.ROOT)))
+                {
+                    continue;
+                }
+
+                messageButton.click();
+
+                WebElement title = driver.findElement(
+                        By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[1]/td"));
+
+                WebElement messageText = driver.findElement(
+                        By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td/table/tbody/tr[2]/td/table/tbody/tr[3]/td/div/div/div"));
+                                  //*[@id=\"frm\"]/table/tbody/tr[2]/td/table/tbody/tr[2]/td/table/tbody/tr[3]/td/div/div/div
+                WebElement dateSent = driver.findElement(
+                        By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[4]/td[2]"));
+                                  //*[@id="frm"]/table/tbody/tr[2]/td/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[4]/td[2]
+
+                if (!title.getText().toLowerCase(Locale.ROOT).contains("Гусь".toLowerCase(Locale.ROOT))
+                        && !messageText.getText().toLowerCase(Locale.ROOT).contains("Гусь".toLowerCase(Locale.ROOT)))
+                {
+                    System.out.println(title.getText());
+                    System.out.println(dateSent.getText());
+                    Assertions.fail();
+                }
+
+                driver.navigate().back();
+
+                messageButtons = driver.findElements(
+                        By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[3]/td/div/table/tbody/tr/td/h1/a"));
+            }
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    @AfterEach
     public void finish()
     {
         driver.quit();
-    }*/
+    }
 }
