@@ -81,6 +81,14 @@ public class SeleniumTests
     public void logout()
     {
         driver.findElement(By.id("lo")).click();
+        try
+        {
+            Thread.sleep(1000);
+        }
+        catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     @Test
@@ -272,8 +280,8 @@ private boolean navigateToPrevPage()
 
     public String sendMessage()
     {
-        driver.findElement(By.id("lnkHdrnewmsg")).click();
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+        driver.findElement(By.id("lnkHdrnewmsg")).click();
         driver.findElement(By.id("txtto")).sendKeys("8181033@edu.miet.ru");
         String msgTitle = "testTitle" + LocalDateTime.now().toString();
         driver.findElement(By.id("txtsbj")).sendKeys(msgTitle);
@@ -296,6 +304,7 @@ private boolean navigateToPrevPage()
         login();
         try
         {
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
             String msgTitle = sendMessage();
 
             driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[1]/table/tbody/tr[2]/td/table/tbody/tr/td/table[1]/tbody/tr[3]/td/a")).click();
@@ -310,6 +319,58 @@ private boolean navigateToPrevPage()
         catch (Exception e)
         {
             System.out.println(e.getMessage() + "<----");
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    @Test
+    public void testMarkMessageAsUnread()
+    {
+        login();
+        try
+        {
+            checkMessageOnCurrentPage(0);
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+            driver.findElement(By.id("lnkHdrmarkunread")).click();
+            WebElement messageRow = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]"));
+            WebElement messageIcon = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]/td[2]/img"));
+
+            Assertions.assertEquals("font-weight: bold;", messageRow.getAttribute("style"));
+            Assertions.assertEquals("https://owa.miet.ru/owa/14.3.513.0/themes/basic/msg-unrd.png", messageIcon.getAttribute("src"));
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Assertions.fail();
+        }
+        finally
+        {
+            logout();
+        }
+    }
+
+    @Test
+    public void testMarkMessageAsRead()
+    {
+        login();
+        try
+        {
+            checkMessageOnCurrentPage(0);
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(1));
+            driver.findElement(By.id("lnkHdrmarkread")).click();
+            WebElement messageRow = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]"));
+            WebElement messageIcon = driver.findElement(By.xpath("//*[@id=\"frm\"]/table/tbody/tr[2]/td[3]/table/tbody/tr[2]/td/div/table/tbody/tr[3]/td[2]/img"));
+
+            Assertions.assertNotEquals("font-weight: bold;", messageRow.getAttribute("style"));
+            Assertions.assertEquals("https://owa.miet.ru/owa/14.3.513.0/themes/basic/msg-rd.png", messageIcon.getAttribute("src"));
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
             Assertions.fail();
         }
